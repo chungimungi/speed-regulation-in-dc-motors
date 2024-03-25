@@ -25,7 +25,7 @@ Q_lyap = eye(2); % Default unity weighting matrix
 P_lyap = care(A', C', Q_lyap);
 
 % Simulation parameters
-t_final = 10;  % Final time for simulation
+t_final = 100;  % Final time for simulation
 dt = 0.01;     % Time step
 
 % Initialize variables to store stability results
@@ -36,12 +36,14 @@ is_stable_lyap = false;
 time_steps = 0:dt:t_final;
 lyapunov_values = zeros(size(time_steps));
 lqr_eigenvalues = zeros(length(time_steps), size(A,1));
+lqr_control_input = zeros(length(time_steps), 1);
 
 % Main loop
 for idx = 1:length(time_steps)
     % Simulate LQR control for speed regulation
     x = zeros(2, 1);   % Initial state
     u = -K_lqr * x;     % Compute control input (voltage)
+    lqr_control_input(idx) = u; % Store control input for plotting
 
     % Update state using system dynamics
     x_dot = A * x + B * u;
@@ -81,6 +83,14 @@ title('Eigenvalues of A - BK over Time');
 legend('Real Part', 'Imaginary Part');
 grid on;
 
+% Plot LQR control input
+figure;
+plot(time_steps, lqr_control_input, 'LineWidth', 1.5);
+xlabel('Time');
+ylabel('LQR Control Input (Voltage)');
+title('LQR Control Input over Time');
+grid on;
+
 % Display stability results
 if is_stable_lqr
     disp('LQR Control: System is stable ');
@@ -93,3 +103,38 @@ if is_stable_lyap
 else
     disp('Lyapunov Stability Analysis: System is unstable');
 end
+
+
+% Initialize arrays to store stability results
+lqr_stability_times = [];
+lyapunov_stability_times = [];
+
+% Main loop for LQR stability analysis
+for idx = 1:length(time_steps)
+    % Check stability condition for LQR
+    if all(real(lqr_eigenvalues(idx,:)) < 0)
+        lqr_stability_times = time_steps(idx);
+        break;
+    end
+end
+
+% Main loop for Lyapunov stability analysis
+for idx = 1:length(time_steps)
+    % Check stability condition for Lyapunov
+    if all(lyapunov_values(idx) <= lyapunov_values(1))
+        lyapunov_stability_times = time_steps(idx);
+        break;
+    end
+end
+
+% Compare stability times
+fprintf('Time taken to achieve stability:\n');
+fprintf('LQR Control: %.2f seconds\n', lqr_stability_times);
+fprintf('Lyapunov Stability Analysis: %.2f seconds\n', lyapunov_stability_times);
+
+% Compare stability margins
+lqr_margin = min(real(lqr_eigenvalues(end,:)));
+lyapunov_margin = min(lyapunov_values);
+fprintf('\nStability Margins:\n');
+fprintf('LQR Control: %.6f\n', lqr_margin);
+fprintf('Lyapunov Stability Analysis: %.6f\n', lyapunov_margin);
